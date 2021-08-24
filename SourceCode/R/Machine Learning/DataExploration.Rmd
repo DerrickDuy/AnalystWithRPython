@@ -1,0 +1,66 @@
+#Import library
+library(ggplot2)
+library(tidyr)
+
+#Load dataset
+df <- read.csv("./data/online_shoppers_intention.csv")
+head(df)
+
+#Summary statistic
+summary(df)
+
+#Check missing values
+colSums(is.na(df))
+
+#Distribution of target variable
+summary(df$Revenue)
+
+#Default theme for ggplot
+theme_set(theme_bw())
+
+#Set default parameters for mosaic plots
+mosaic_theme = theme(axis.text.x = element_text(angle = 90,
+                                                hjust = 1,
+                                                vjust = 0.5),
+                     axis.text.y = element_blank(),
+                     axis.ticks.y = element_blank())
+
+#Data exploration
+
+##Administrative
+df %>% 
+  ggplot() +
+  aes(x = Administrative) +
+  geom_bar() +
+  facet_grid(Revenue ~ .,
+             scales = "free_y")
+             
+##ProductRelated_Duration
+df %>% 
+  ggplot() +
+  aes(x = ProductRelated_Duration) +
+  geom_histogram() +
+  facet_grid(Revenue ~ .,
+             scales = "free_y")
+
+#ExitRates
+df %>% 
+  ggplot() +
+  aes(x = ExitRates) +
+  geom_histogram() +
+  facet_grid(Revenue ~ .,
+             scales = "free_y")
+             
+#PageValues
+df %>% 
+  ggplot() +
+  aes(x = PageValues) +
+  geom_histogram() +
+  facet_grid(Revenue ~ .,
+             scales = "free_y")
+             
+#Month
+df %>% 
+  ggplot() +
+  aes(x = Month, Revenue = ..count../nrow(df), fill = Revenue) +
+  geom_bar() 

@@ -1,0 +1,60 @@
+
+#Import library
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(pROC)
+library(e1071)
+
+#Load dataset
+df <- online_shoppers_intention
+
+#Convert 'Revenue' & 'Weekend' to binary number
+df$Revenue <- ifelse(df$Revenue == "TRUE",1,0)
+df$Weekend <- ifelse(df$Weekend == "TRUE",1,0)
+
+#Encoding categorical variables
+dummy <- dummyVars(" ~ .", data=df)
+new_df <- data.frame(predict(dummy, newdata=df)) 
+
+head(new_df)
+
+#Remove the target column from data frame
+X <- new_df[, -which(names(new_df) %in% c("Revenue"))]
+y <- new_df[, "Revenue"]
+
+#Feature scaling
+X <- scale(X)
+
+#Add into dataframe again
+new_df <- as.data.frame(X)
+new_df$Revenue <- y
+
+head(new_df)
+
+#Split train & test
+dt = sort(sample(nrow(new_df), nrow(new_df)*.70))
+train <- new_df[dt,]
+test <- new_df[-dt,]
+
+#Create model
+model_DT = rpart(Revenue ~ ., data = train, method='class')
+                 
+#Draw decision tree
+rpart.plot(model_DT)
+
+#Predict on test set
+pred_values = predict(model_DT, test, type='class')
+pred_values
+
+#Evaluation metrics
+cm <- confusionMatrix(pred_values, as.factor(test$Revenue))
+cm
+
+#ROC Curve
+pred_proba <- predict(model_DT, test, type = 'prob')
+auc <- auc(test$Revenue, pred_proba[,2])
+plot(roc(test$Revenue, pred_proba[,2]), print.auc=TRUE)
+
+
+

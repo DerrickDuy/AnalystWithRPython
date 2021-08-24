@@ -1,0 +1,115 @@
+
+#Import pacman (package manager)
+if (!require("pacman")) install.packages("pacman")
+
+# Use pacman to load add-on packages as desired
+pacman::p_load(pacman, neuralnet, fastDummies, 
+               corrplot, RColorBrewer, rio, ROCR, ggplot2) 
+
+# Importing Dataset
+data <- import("./datasets/online_shoppers_intention.csv")
+
+# Exploring Dataset
+head(data)
+
+# Convert Logical Value into Integer
+data$Weekend <- as.integer(as.logical(data$Weekend))
+data$Revenue <- as.integer(as.logical(data$Revenue))
+
+# One-hot Encoding
+data_d <- dummy_cols(data)
+data_d <- data_d[, -which(names(data) %in% c("Month", "VisitorType"))]
+
+head(data_d)
+
+# Remove the target column Revenue from data frame
+X <- data_d[, -which(names(data_d) %in% c("Revenue"))]
+y <- data_d[, "Revenue"]
+
+# Split train and test set
+sample_size = 0.70 * nrow(data)
+
+set.seed(1234)
+
+index = sample(seq_len( nrow(data_d) ), size = sample_size)
+
+X_train <- X[index, ]
+y_train <- y[index]
+X_test <- X[-index, ]
+y_test <- y[-index]
+
+
+#Feature scaling 
+
+X_train <- scale(X_train)
+X_test <- scale(X_test)
+train <- as.data.frame(X_train)
+train$Revenue <- y_train
+head(train)
+
+# Create model
+formula <- paste("Revenue ~ ", paste(colnames(X_train), collapse= " + "))
+fmla <- as.formula(formula)
+NN <- neuralnet(fmla, data=train, linear.output=FALSE) # For classification
+
+# Predict on the test set
+results = compute(NN, X_test)
+
+# Actual value and predicted value
+prob_results <- results$net.result
+predict_results <- data.frame(actual = y_test, prediction = prob_results)
+head(predict_results)
+
+rounded_results<-sapply(predict_results,round,digits=0)
+rounded_results_df <- data.frame(rounded_results)
+head(rounded_results_df)
+
+
+# Confusion Matrix
+attach(rounded_results_df)
+table(actual,prediction)
+
+
+# Visualize Confusion Matrix 
+confusion_matrix <- as.vector(table(actual, prediction))
+
+Actuals <- factor(c(0, 0, 1, 1))
+Predictions <- factor(c(0, 1, 0, 1))
+confusion_matrix_df <- data.frame(Actuals, Predictions, confusion_matrix)
+
+ggplot(data =  confusion_matrix_df, 
+       mapping = aes(x = Actuals, y = Predictions)) +
+  geom_tile(aes(fill = confusion_matrix), colour = "white") +
+  geom_text(aes(label = sprintf("%1.0f", confusion_matrix)), vjust = 1) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_bw() + theme(legend.position = "none")
+
+# Evaluation Metrics
+nn_pred <- ROCR::prediction(prob_results, y_test)
+
+# Accuracy
+acc.perf = performance(nn_pred, measure = "acc")
+ind = which.max( slot(acc.perf, "y.values")[[1]] )
+acc = slot(acc.perf, "y.values")[[1]][ind]
+cutoff = slot(acc.perf, "x.values")[[1]][ind]
+print(c(accuracy= acc, cutoff = cutoff))
+
+# Precision and Recall  
+RP.perf <- performance(nn_pred, "prec", "rec")
+plot(RP.perf,
+     avg="threshold")
+
+
+# AUC
+auc.perf = performance(nn_pred, measure = "auc")
+auc.perf@y.values
+
+# ROC AUC
+AUC_label = paste("AUC = ", round(as.numeric(auc.perf@y.values), digits=2))
+perf <- ROCR::performance(nn_pred, "tpr", "fpr")
+
+# Visualize ROC Curve
+plot(perf, type="l", col = "blue", avg="threshold", lwd=3)
+lines(y_test, y_test, type="l", lty=2, lwd=1, col = "red", pch=18)
+legend("bottomright", legend=c(AUC_label),
+       col=c("blue"), lty=1:2, cex=0.8)

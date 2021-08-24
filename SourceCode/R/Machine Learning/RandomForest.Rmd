@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+
+#Install Package
+install.packages("randomForest")
+library(randomForest)
+install.packages("ggplot2")
+library("ggplot2")
+install.packages("caret")
+library(caret) 
+install.packages('e1071')
+library('e1071')
+
+#Load Dataset
+data = online_shoppers_intention
+str(data)
+summary(data)
+
+#Convert 'Revenue' & 'Weekend' to binary number
+data$Revenue <- ifelse(data$Revenue == "TRUE",1,0)
+data$Weekend <- ifelse(data$Weekend == "TRUE",1,0)
+
+#Encoding categorical variables
+dummy <- dummyVars(" ~ .", data=data)
+df <- data.frame(predict(dummy, newdata=data)) 
+
+head(data)
+
+#Standardize Data
+dat <- data.frame(x = rnorm(10, 30, .2), y = runif(10, 3, 5))
+scaled.dat <- scale(dat)
+
+#Split Data
+data$Revenue = as.factor(data$Revenue)
+data_set_size = floor(nrow(data)*.7)
+index <- sample(1:nrow(data), size = data_set_size)
+train <- data[index,]
+test <- data[-index,]
+
+#Create the forest.
+model_RF <- randomForest(Revenue ~ ., data=train, importance = TRUE)
+
+#Predict on test set
+pred_test = predict(model_RF, test)
+pred_test
+
+#Confusion matrix
+confusionMatrix(pred_test, test$Revenue, mode = 'everything')
+
+#Error rate of Random Forest
+plot(model_RF)
+
+#Variable importance
+varImpPlot(model_RF,
+           sort = T,
+           n.var = 5,
+           main = "Top 5 - Variable Importance")
+           
+importance(model_RF)

@@ -1,0 +1,50 @@
+
+df <- heart
+
+#Summary statistics
+summary(df)
+
+#Check null values
+sum(is.na(df))
+
+#Visualize "target" vs "thalach"
+ggplot(df, aes(x = thalach, fill = factor(target))) +
+        geom_histogram() +
+  labs(x = "Maximum Heart Rate Achieved (bpm)", 
+       y = "Number of Individuals") +
+        scale_fill_discrete(name = "Status",
+                       labels = c("Disease", "No Disease")) 
+
+#Split data
+dt = sort(sample(nrow(df), nrow(df)*.70))
+train<-df[dt,]
+test<-df[-dt,]
+
+#Create model
+model<-glm(target ~ thalach, family = 'binomial', data = train)
+summary(model)
+
+#Visualization
+plot(target  ~ thalach ,
+     data = df,
+     xlab="Maximum heart rate achieved",
+     ylab="Probability of heart disease",
+     pch=19)             
+
+curve(predict(model_c,data.frame(thalach=x),type='response'),
+      lty=1, lwd=2, col="blue",                           
+      add=TRUE)
+      
+#Predict on test set
+pred_values = predict(model, newdata=test, type='response')
+pred_classes <- ifelse(pred_values > 0.5, "1", "0")
+
+#Confusion matrix
+table(test$target, pred_values > 0.5)
+
+#Model accuracy
+mean(pred_classes == test$target)
+
+
+
+

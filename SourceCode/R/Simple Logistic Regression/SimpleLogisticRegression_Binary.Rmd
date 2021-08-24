@@ -1,0 +1,22 @@
+
+df <- heart
+
+#Split data
+dt = sort(sample(nrow(df), nrow(df)*.70))
+train<-df[dt,]
+test<-df[-dt,]
+
+#Create model
+model<-glm(target ~ exang, family = 'binomial', data = train)
+summary(model)
+
+#Predict on test set
+pred_values = predict(model, newdata=test, type='response')
+pred_classes <- ifelse(pred_values > 0.5, "1", "0")
+
+#Confusion matrix
+table(test$target, pred_values > 0.5)
+
+#Model accuracy
+mean(pred_classes == test$target)
+

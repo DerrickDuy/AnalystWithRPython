@@ -1,0 +1,63 @@
+#Import library
+library(tidytable)
+library(e1071)
+library(dplyr)
+library(caret)
+library(ROCR)
+
+#Load dataset
+df <- online_shoppers_intention
+
+#Convert 'Revenue' & 'Weekend' to binary number
+df$Revenue <- ifelse(df$Revenue == "TRUE",1,0)
+df$Weekend <- ifelse(df$Weekend == "TRUE",1,0)
+
+#Encoding categorical variables
+dummy <- dummyVars(" ~ .", data=df)
+new_df <- data.frame(predict(dummy, newdata=df)) 
+
+head(new_df)
+
+#Remove the target column from data frame
+X <- new_df[, -which(names(new_df) %in% c("Revenue"))]
+y <- new_df[, "Revenue"]
+
+#Feature scaling
+X <- scale(X)
+
+#Add into dataframe again
+new_df <- as.data.frame(X)
+new_df$Revenue <- y
+
+head(new_df)
+
+#Split train & test
+dt = sort(sample(nrow(new_df), nrow(new_df)*.70))
+train <- new_df[dt,]
+test <- new_df[-dt,]
+
+#Create model
+model_SVM = svm(Revenue ~ ., 
+                data = train, 
+                type ='C-classification', 
+                kernel = 'linear')
+model_SVM
+
+# Predict for present values
+predTest = predict(model_SVM, test, type='response')
+predTest
+
+#Confusion matrix
+pred.train.dt <- predict(model_SVM,test,type = "response")
+mean(pred.train.dt==test$Revenue)
+
+cm <- table(pred.train.dt,test$Revenue)
+cm
+
+#ROC Curve
+p <- predict(model_SVM ,test, type="decision")
+p <- as.numeric(p)-1
+pr <-prediction(p, test$Revenue)
+pref <- performance(pr, "tpr", "fpr")
+plot(pref, AUC = 'True')
+lines(x = c(0,1), y = c(0,1),col="blue")

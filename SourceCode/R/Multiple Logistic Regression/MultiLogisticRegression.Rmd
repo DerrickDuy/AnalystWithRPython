@@ -1,0 +1,60 @@
+#Import Library
+library(scatterplot3d)
+library(dplyr)
+
+#ImportData
+df <- read_csv("heart.csv")
+
+#Split train & test
+dt = sort(sample(nrow(df), nrow(df)*.75))
+train<-df[dt,]
+test<-df[-dt,]
+
+#BienLienTuc
+
+#CreateModel
+mod1 <- glm(target ~ thalach + chol, family = binomial, data = train)
+summary(mod1)
+
+#BuildPlot
+train %>% 
+  mutate(fitted = fitted(mod1)) %>% 
+  select(thalach, chol, fitted) %>% 
+  scatterplot3d(color = "skyblue")
+  
+#Evaluation
+predTest <- predict(mod1,test,type="response")
+pred_classes <- ifelse(predTest >0.5, '1','0')
+table(test$target, predTest>0.5)
+
+#ModelAccuracy
+mean(pred_classes == test$target)
+
+#BienNhiPhan
+
+#CreateModel
+mod2 <- glm(target ~ exang + fbs, family = binomial, data = train)
+summary(mod2)
+
+#Evaluation
+predTest2 <- predict(mod2,test,type="response")
+pred_classes2 <- ifelse(predTest2 >0.5, '1','0')
+table(test$target, predTest2>0.5)
+
+#ModelAccuracy
+mean(pred_classes2 == test$target)
+
+
+#BienThuBac
+
+#CreateModel
+mod3 <- glm(target ~ slope + thal, family = binomial, data = train)
+summary(mod3)
+
+#Evaluation
+predTest3 <- predict(mod3,test,type="response")
+pred_classes3 <- ifelse(predTest3 >0.5, '1','0')
+table(test$target, predTest3>0.5)
+
+#ModelAccuracy
+mean(pred_classes3 == test$target)

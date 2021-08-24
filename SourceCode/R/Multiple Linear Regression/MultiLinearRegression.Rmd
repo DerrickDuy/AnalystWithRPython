@@ -1,0 +1,144 @@
+# Import pacman (package manager)
+
+if (!require("pacman")) install.packages("pacman")
+
+# Use pacman to load add-on packages as desired
+
+pacman::p_load(pacman, rio, ggplot2, dplyr, reshape2,
+               purrr, fastDummies, caret, car) 
+
+# Import dataset
+
+cars <- import("./datasets/CarPrice_Assignment.csv")
+head(cars)
+
+# Summarize dataset
+
+str(cars)
+summary(cars)
+
+# Visualize
+
+ggplot(cars, aes(x=price)) + 
+  geom_histogram(aes(y=..density..),
+                 colour="black", fill="white") +
+  geom_density(alpha=.2, fill="#FF6666")
+
+# Drop car_ID and names
+
+cars <- select (cars,-c(car_ID, CarName))
+
+# Extract Numeric Value
+
+cars_numeric <- cars[ , map_lgl(cars, is.numeric)]
+
+# Correlation Heat map 
+
+cormat <- round(cor(cars_numeric), 2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  geom_text(aes(Var2, Var1, label = value), color = "white", size = 3) +
+  theme(axis.text.x = element_text(angle = 90))
+
+# Dummy Variables
+
+categorical_columns <-  c("fueltype", "aspiration", "doornumber", 
+                          "carbody", "drivewheel", "enginelocation", 
+                          "enginetype", "cylindernumber", "fuelsystem")
+
+cars <- dummy_cols(cars, 
+                   select_columns = categorical_columns, 
+                   remove_first_dummy = TRUE)
+
+cars <- select (cars,-c(fueltype, aspiration, doornumber, carbody, 
+                        drivewheel, enginelocation, enginetype,
+                        cylindernumber, fuelsystem))
+
+cormat <- round(cor(cars), 2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  theme(axis.text.x=element_text(angle=90, hjust=1))
+
+# Extracting Highly Related Columns
+
+df <- select (cars, c(wheelbase, carlength, carwidth, curbweight, 
+                      enginesize, boreratio, horsepower, drivewheel_rwd, 
+                      fuelsystem_mpfi, citympg, highwaympg, 
+                      cylindernumber_four, price))
+
+# Data standardization
+
+df[c("wheelbase", "carlength", "carwidth", 
+     "curbweight", "enginesize", "boreratio", 
+     "horsepower", "citympg", "highwaympg", "price"
+     )] <- scale(df[c("wheelbase", "carlength", "carwidth", "curbweight", 
+                            "enginesize", "boreratio", "horsepower", "citympg", 
+                            "highwaympg", "price")])
+
+# Train Test Split
+
+set.seed(0)
+trainIndex <- createDataPartition(df$price,p=0.7,list=FALSE)
+
+df_train <- df[trainIndex,] #training data (75% of data)
+
+df_test <- df[-trainIndex,] #testing data (25% of data)
+
+drops <- c("price")
+X_train <- df_train[, !(names(df_train) %in% drops)]
+y_train <- df_train$price
+X_test <- df_test[, !(names(df_test) %in% drops)]
+y_test <- df_test$price
+
+
+# Linear Regression
+
+# Recursive Feature Elimination
+
+subsets <- c(1:12)
+
+ctrl <- rfeControl(functions = lmFuncs,
+                   method = "repeatedcv",
+                   repeats = 10,
+                   number=10,
+                   verbose = FALSE)
+
+lmProfile <- rfe(X_train, y_train,
+                 sizes = subsets,
+                 rfeControl = ctrl,
+                 metric="Rsquared")
+
+predictors(lmProfile)
+
+lmProfile$fit
+
+# Evaluation
+
+head(lmProfile$resample)
+
+plot(lmProfile, type=c("g", "o"))
+
+y_train_predicted <- predict(lmProfile, X_train)
+
+hist(y_train - y_train_predicted, xlab="Error", breaks=20,
+     main="Errors Terms", ylab="Count", prob=TRUE) 
+lines(density(y_train - y_train_predicted), lwd=2)
+
+
+# Prediction
+new_predictions <- predict(lmProfile, X_test)
+
+R2 <- function(x, y) cor(x, y) ^ 2
+R2(new_predictions, y_test)
+
+plot(x=y_test, y=new_predictions, col="blue", pch=19)
+lines(x=y_test, y=y_test, type="l", col="red")
+
+# VIF
+
+vif(lmProfile$fit)
+
